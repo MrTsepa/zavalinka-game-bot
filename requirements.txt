@@ -1,5 +1,7 @@
 python-telegram-bot
 
+parse
+more-itertools
 
 beautifulsoup4
 requests
