@@ -1,0 +1,1 @@
+from .Generator import generate_wordlist
