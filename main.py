@@ -184,6 +184,12 @@ def next_question_command(update: Update, context: CallbackContext) -> int:
         update.message.reply_text(f'You are an admin of more than one room.')
         return 0
     admin_room = admin_rooms[0]
+
+    if context.job_queue.get_jobs_by_name(f'{admin_room.id} answering') or \
+            context.job_queue.get_jobs_by_name(f'{admin_room.id} voting'):
+        update.message.reply_text(f'Wait until current word is finished.')
+        return 0
+
     if admin_room.game_state.question_idx >= len(admin_room.game.question_set.questions):
         update.message.reply_text(f'You are out of questions.')
         return 0
