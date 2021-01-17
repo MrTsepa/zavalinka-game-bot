@@ -31,6 +31,12 @@ class StorageController:
         ))
         self.storage.rooms[room_id].game_state = GameState(0)
 
+    def next_round(self, room_id: Room.ID_TYPE) -> None:
+        old_question_idx = self.storage.rooms[room_id].game_state.question_idx
+        if old_question_idx == len(self.storage.rooms[room_id].game.question_set.questions) - 1:
+            raise IndexError
+        self.storage.rooms[room_id].game_state = GameState(old_question_idx+1)
+
     def get_current_word(self, room_id: Room.ID_TYPE) -> str:
         room = self.storage.rooms[room_id]
         return room.game.question_set.questions[room.game_state.question_idx].word
@@ -55,6 +61,13 @@ class StorageController:
 
     def add_user_description(self, room_id: Room.ID_TYPE, user_id: int, description: str) -> None:
         self.storage.rooms[room_id].game_state.user_descriptions[user_id] = description
+
+    def set_poll_description_order(self, room_id: Room.ID_TYPE,
+                                   description_order: typing.List[typing.Tuple[str, typing.Optional[int]]]) -> None:
+        self.storage.rooms[room_id].game_state.poll_description_order = description_order
+
+    def get_description_order(self, room_id: Room.ID_TYPE) -> typing.List[typing.Tuple[str, typing.Optional[int]]]:
+        return self.storage.rooms[room_id].game_state.poll_description_order
 
     def add_poll(self, room_id: Room.ID_TYPE, poll_id: str, message_id: int) -> None:
         self.storage.rooms[room_id].game_state.poll_id = poll_id

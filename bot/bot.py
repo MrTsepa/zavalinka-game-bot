@@ -1,4 +1,6 @@
 from enum import Enum, auto
+import random
+from collections import defaultdict
 
 from telegram import Update, ReplyKeyboardMarkup, Chat, Poll
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, \
@@ -55,7 +57,7 @@ class Bot:
             update.message.reply_text('You are not a participant of the game, please type /add_me first.')
             return Bot.State.INIT_STATE
         update.message.reply_text('I\'m starting the game.')
-        self.controller.start_game(room_id, generate_wordlist(2))
+        self.controller.start_game(room_id, generate_wordlist(4))
         context.bot.send_message(update.effective_chat.id, 'Game has been set up.')
         context.bot.send_message(
             update.effective_chat.id,
@@ -72,13 +74,23 @@ class Bot:
 
     def vote_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
-        all_descriptions = [self.controller.get_current_description(room_id)] + \
-                           list(self.controller.get_current_user_descriptions(room_id).values())
-        if len(all_descriptions) == 1:
-            all_descriptions.append('Placeholder')
+        if not self.controller.get_current_user_descriptions(room_id):
+            update.message.reply_text('Nobody has published their versions yet, can\'t start a vote.')
+            return Bot.State.WAIT_ANS
+
+        description_order = [(self.controller.get_current_description(room_id), None)]
+        description_order.extend((
+            (description, user_id)
+            for user_id, description in self.controller.get_current_user_descriptions(room_id).items()
+        ))
+        assert len(description_order) > 1
+
+        random.shuffle(description_order)
+        self.controller.set_poll_description_order(room_id, description_order)
+
         sent_message = update.message.reply_poll(
             f'{self.controller.get_current_word(room_id)}',
-            all_descriptions,
+            [description[:100] for description, user in description_order],
             is_anonymous=False,
         )
         self.controller.add_poll(room_id, sent_message.poll.id, sent_message.message_id)
@@ -100,11 +112,49 @@ class Bot:
                 'Everybody has voted. To see results type /results.'
             )
 
-    def results_command(self, update: Update, context: CallbackContext):
-        pass
+    def results_command(self, update: Update, context: CallbackContext) -> State:
+        room_id = chat_id_to_room_id(update.effective_chat.id)
+        user_dict = self.controller.get_users_in_room(room_id)
+        results = {user_id: 0 for user_id in user_dict}
+        results['official'] = 0
+        description_order = self.controller.get_description_order(room_id)
+        for user_id, vote in self.controller.get_user_votes(room_id).items():
+            author_id = description_order[vote][1]
+            if author_id is None:
+                results['official'] += 1
+            else:
+                results[author_id] += 1
+        result_string = '\n'.join(
+            f'{user_dict[user_id].username if user_id != "official" else user_id}: {result}'
+            for user_id, result in results.items()
+        )
+        update.message.reply_text(result_string)
+        context.bot.send_message(
+            room_id_to_chat_id(room_id),
+            'To start next round type /next.'
+        )
+        return Bot.State.ROUND_FINISH
 
-    def next_command(self, update: Update, context: CallbackContext):
-        pass
+    def next_command(self, update: Update, context: CallbackContext) -> State:
+        room_id = chat_id_to_room_id(update.effective_chat.id)
+        try:
+            self.controller.next_round(room_id)
+        except IndexError:
+            update.message.reply_text('Questions has finished, to start new game type /start_game')
+            return Bot.State.INIT_STATE
+        update.message.reply_text('Starting new round.')
+        context.bot.send_message(
+            update.effective_chat.id,
+            'When everybody has finished answering, type /vote to start vote.'
+        )
+        context.bot.send_message(update.effective_chat.id, f'Next word: {self.controller.get_current_word(room_id)}')
+        for user_id in self.controller.get_users_in_room(room_id):
+            sent_message = context.bot.send_message(
+                user_id,
+                f'Next word: {self.controller.get_current_word(room_id)}'
+            )
+            self.controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
+        return Bot.State.WAIT_ANS
 
     def stop_game_command(self, update: Update, context: CallbackContext) -> int:
         update.message.reply_text("Game ended. Type /start if you want to play again.")
