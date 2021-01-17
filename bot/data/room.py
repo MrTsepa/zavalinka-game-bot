@@ -13,4 +13,4 @@ class Room:
     id: ID_TYPE
     game: Game = None
     game_state: GameState = None
-    participants: typing.List[User] = field(default_factory=list)
+    participants: typing.Dict[int, User] = field(default_factory=dict)
