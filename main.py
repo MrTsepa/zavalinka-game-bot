@@ -1,4 +1,5 @@
 from private_messages_bot.private_messages_bot import PrivateMessagesBot
+from bot.bot import Bot
 
 import logging
 
@@ -12,7 +13,7 @@ def main():
     with open('.token', 'r') as f:
         TOKEN = f.readline()
 
-    bot = PrivateMessagesBot(TOKEN)
+    bot = Bot(TOKEN)
     bot.start()
 
 
