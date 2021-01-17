@@ -42,3 +42,34 @@ class StorageController:
     def get_current_user_descriptions(self, room_id: Room.ID_TYPE) -> typing.Dict[int, str]:
         room = self.storage.rooms[room_id]
         return room.game_state.user_descriptions
+
+    def add_user_question_message_id(self, room_id: Room.ID_TYPE, user_id: int, message_id: int) -> None:
+        room = self.storage.rooms[room_id]
+        room.game_state.user_question_message_id[user_id] = message_id
+
+    def get_room_id_by_private_message_id(self, user_id: int, message_id: int) -> typing.Optional[Room.ID_TYPE]:
+        user_rooms = list(filter(lambda room: user_id in room.participants, self.storage.rooms.values()))
+        for room in user_rooms:
+            if room.game_state.user_question_message_id[user_id] == message_id:
+                return room.id
+
+    def add_user_description(self, room_id: Room.ID_TYPE, user_id: int, description: str) -> None:
+        self.storage.rooms[room_id].game_state.user_descriptions[user_id] = description
+
+    def add_poll(self, room_id: Room.ID_TYPE, poll_id: str, message_id: int) -> None:
+        self.storage.rooms[room_id].game_state.poll_id = poll_id
+        self.storage.rooms[room_id].game_state.poll_message_id = message_id
+
+    def get_room_id_by_poll_id(self, poll_id: str) -> typing.Optional[Room.ID_TYPE]:
+        for room in self.storage.rooms.values():
+            if room.game_state.poll_id == poll_id:
+                return room.id
+
+    def get_poll_message_id(self, room_id) -> int:
+        return self.storage.rooms[room_id].game_state.poll_message_id
+
+    def add_user_vote(self, room_id: Room.ID_TYPE, user_id: int, vote: int) -> None:
+        self.storage.rooms[room_id].game_state.user_votes[user_id] = vote
+
+    def get_user_votes(self, room_id: Room.ID_TYPE) -> typing.Dict[int, int]:
+        return self.storage.rooms[room_id].game_state.user_votes
