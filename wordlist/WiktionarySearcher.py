@@ -28,9 +28,9 @@ class WiktionarySearcher(object):
     def generate_word(self):
         pos = random.choice([
             'Русские_существительные',
-            'Русские_прилагательные',
-            'Русские_глаголы',
-            'Русские_наречия'
+            # 'Русские_прилагательные',
+            # 'Русские_глаголы',
+            # 'Русские_наречия',
         ])
         url = WiktionarySearcher.url + urllib.parse.quote_plus(f'Служебная:RandomInCategory/{pos}')
         r = requests.get(url)
