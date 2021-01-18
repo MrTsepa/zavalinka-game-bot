@@ -15,6 +15,8 @@ def generate_wordlist(n: int) -> List[Tuple[str, str]]:
         except Exception as e:
             continue
         word, meanings = word.text, word.meanings
+        if not meanings:
+            continue
         freq = zipf_frequency(word, 'ru')
         if freq <= 1:
             words.append((word, random.choice(meanings)))

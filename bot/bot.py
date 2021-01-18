@@ -186,7 +186,6 @@ class Bot:
         updater = Updater(self.token, use_context=True)
 
         dispatcher = updater.dispatcher
-        dispatcher.add_handler(PollAnswerHandler(self.vote_poll_answer))
         dispatcher.add_handler(ConversationHandler(
             entry_points=[CommandHandler("start", self.start_command)],
             states={
@@ -204,6 +203,7 @@ class Bot:
             per_message=False,
             allow_reentry=True,
         ))
+        dispatcher.add_handler(PollAnswerHandler(self.vote_poll_answer))
         dispatcher.add_handler(MessageHandler(Filters.reply, self.receive_description_from_user))
 
         updater.start_polling()
