@@ -33,8 +33,8 @@ class Bot:
 
         self.words_per_game = 1
 
-    def __send(self, message, context, update, reply=True, chat_id=None, **kwargs):
-        message = self.message_reader[message].format(**kwargs)
+    def __send(self, message, context, update, reply=True, chat_id=None, message_kwargs={}):
+        message = self.message_reader[message].format(**message_kwargs)
         if chat_id is not None:
             return context.bot.send_message(chat_id, message)
         if reply:
@@ -65,10 +65,10 @@ class Bot:
         self.controller.start_game(room_id, generate_wordlist(self.words_per_game))
         self.__send(Messages.GAME_START_2, context, update, reply=False)
         word = self.controller.get_current_word(room_id)
-        self.__send(Messages.ROUND_START_1, context, update, reply=False, word=word)
+        self.__send(Messages.ROUND_START_1, context, update, reply=False, message_kwargs={'word': word})
         self.__send(Messages.ROUND_START_2, context, update, reply=False)
         for user_id in self.controller.get_users_in_room(room_id):
-            sent_message = self.__send(Messages.ROUND_START_1, context, update, chat_id=user_id, word=word)
+            sent_message = self.__send(Messages.ROUND_START_1, context, update, chat_id=user_id, message_kwargs={'word': word})
             self.controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
         return Bot.State.WAIT_ANS
 
@@ -125,7 +125,7 @@ class Bot:
             f'{user_dict[user_id].username if user_id != "official" else user_id}: {result}'
             for user_id, result in results.items()
         )
-        self.__send(Messages.ROUND_END_1, context, update, results=result_string)
+        self.__send(Messages.ROUND_END_1, context, update, message_kwargs={'results': result_string})
         self.__send(Messages.ROUND_END_2, context, update, chat_id=room_id_to_chat_id(room_id))
         return Bot.State.ROUND_FINISH
 
@@ -137,10 +137,10 @@ class Bot:
             self.__send(Messages.QUESTIONS_ENDED, context, update)
             return Bot.State.INIT_STATE
         word = self.controller.get_current_word(room_id)
-        self.__send(Messages.ROUND_START_1, context, update, word=word)
+        self.__send(Messages.ROUND_START_1, context, update, message_kwargs={'word': word})
         self.__send(Messages.ROUND_START_2, context, update, reply=False)
         for user_id in self.controller.get_users_in_room(room_id):
-            sent_message = self.__send(Messages.ROUND_START_1, context, update, chat_id=user_id, word=word)
+            sent_message = self.__send(Messages.ROUND_START_1, context, update, chat_id=user_id, message_kwargs={'word': word})
             self.controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
         return Bot.State.WAIT_ANS
 
