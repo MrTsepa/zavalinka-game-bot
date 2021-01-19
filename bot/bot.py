@@ -1,12 +1,12 @@
 from enum import Enum, auto
 import random
-from collections import defaultdict
 
-from telegram import Update, ReplyKeyboardMarkup, Chat, Poll
+from telegram import Update, Chat
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, \
-    CallbackContext, ConversationHandler, PollAnswerHandler, PollHandler
+    CallbackContext, ConversationHandler, PollAnswerHandler
 
 from bot.controller import StorageController
+from bot.messages.message_reader import MessageReader, Messages
 
 from wordlist import generate_wordlist
 
@@ -29,53 +29,53 @@ class Bot:
     def __init__(self, token):
         self.token = token
         self.controller = StorageController()
+        self.message_reader = MessageReader()
+
+        self.words_per_game = 1
+
+    def __send(self, message, context, update, reply=True, chat_id=None, **kwargs):
+        message = self.message_reader[message].format(**kwargs)
+        if chat_id is not None:
+            return context.bot.send_message(chat_id, message)
+        if reply:
+            return update.message.reply_text(message)
+        return context.bot.send_message(update.effective_chat.id, message)
 
     def start_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
         self.controller.create_room(room_id)
-        update.message.reply_text(
-            'Hi!\n'
-            'All users who want to participate in game should type /add_me.\n'
-            'After that type /start_game to start game.'
-        )
+        self.__send(Messages.START, context, update)
         return Bot.State.INIT_STATE
 
     def add_me_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
         if not self.controller.is_user_in_room(room_id, update.effective_user.id):
             self.controller.add_user_to_room(room_id, update.effective_user)
-            update.message.reply_text(
-                'Done! You have been added to the game. When everybody is ready type /start_game.'
-            )
+            self.__send(Messages.ADD_ME_SUCCESS, context, update)
         else:
-            update.message.reply_text('You have been already added to the game.')
+            self.__send(Messages.ADD_ME_DUB, context, update)
         return Bot.State.INIT_STATE
 
     def start_game_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
         if not self.controller.is_user_in_room(room_id, update.effective_user.id):
-            update.message.reply_text('You are not a participant of the game, please type /add_me first.')
+            self.__send(Messages.UNKNOWN_USER, context, update)
             return Bot.State.INIT_STATE
-        update.message.reply_text('I\'m starting the game.')
-        self.controller.start_game(room_id, generate_wordlist(4))
-        context.bot.send_message(update.effective_chat.id, 'Game has been set up.')
-        context.bot.send_message(
-            update.effective_chat.id,
-            'When everybody has finished answering, type /vote to start vote.'
-        )
-        context.bot.send_message(update.effective_chat.id, f'First word: {self.controller.get_current_word(room_id)}')
+        self.__send(Messages.GAME_START_1, context, update)
+        self.controller.start_game(room_id, generate_wordlist(self.words_per_game))
+        self.__send(Messages.GAME_START_2, context, update, reply=False)
+        word = self.controller.get_current_word(room_id)
+        self.__send(Messages.ROUND_START_1, context, update, reply=False, word=word)
+        self.__send(Messages.ROUND_START_2, context, update, reply=False)
         for user_id in self.controller.get_users_in_room(room_id):
-            sent_message = context.bot.send_message(
-                user_id,
-                f'First word: {self.controller.get_current_word(room_id)}'
-            )
+            sent_message = self.__send(Messages.ROUND_START_1, context, update, chat_id=user_id, word=word)
             self.controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
         return Bot.State.WAIT_ANS
 
     def vote_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
         if not self.controller.get_current_user_descriptions(room_id):
-            update.message.reply_text('Nobody has published their versions yet, can\'t start a vote.')
+            self.__send(Messages.NO_VERSIONS, context, update)
             return Bot.State.WAIT_ANS
 
         description_order = [(self.controller.get_current_description(room_id), None)]
@@ -107,10 +107,7 @@ class Bot:
             context.bot.stop_poll(
                 chat_id, self.controller.get_poll_message_id(room_id)
             )
-            context.bot.send_message(
-                chat_id,
-                'Everybody has voted. To see results type /results.'
-            )
+            self.__send(Messages.VOTE_SUCCESS, context, update, chat_id=chat_id)
 
     def results_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
@@ -128,11 +125,8 @@ class Bot:
             f'{user_dict[user_id].username if user_id != "official" else user_id}: {result}'
             for user_id, result in results.items()
         )
-        update.message.reply_text(result_string)
-        context.bot.send_message(
-            room_id_to_chat_id(room_id),
-            'To start next round type /next.'
-        )
+        self.__send(Messages.ROUND_END_1, context, update, results=result_string)
+        self.__send(Messages.ROUND_END_2, context, update, chat_id=room_id_to_chat_id(room_id))
         return Bot.State.ROUND_FINISH
 
     def next_command(self, update: Update, context: CallbackContext) -> State:
@@ -140,24 +134,18 @@ class Bot:
         try:
             self.controller.next_round(room_id)
         except IndexError:
-            update.message.reply_text('Questions has finished, to start new game type /start_game')
+            self.__send(Messages.QUESTIONS_ENDED, context, update)
             return Bot.State.INIT_STATE
-        update.message.reply_text('Starting new round.')
-        context.bot.send_message(
-            update.effective_chat.id,
-            'When everybody has finished answering, type /vote to start vote.'
-        )
-        context.bot.send_message(update.effective_chat.id, f'Next word: {self.controller.get_current_word(room_id)}')
+        word = self.controller.get_current_word(room_id)
+        self.__send(Messages.ROUND_START_1, context, update, word=word)
+        self.__send(Messages.ROUND_START_2, context, update, reply=False)
         for user_id in self.controller.get_users_in_room(room_id):
-            sent_message = context.bot.send_message(
-                user_id,
-                f'Next word: {self.controller.get_current_word(room_id)}'
-            )
+            sent_message = self.__send(Messages.ROUND_START_1, context, update, chat_id=user_id, word=word)
             self.controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
         return Bot.State.WAIT_ANS
 
     def stop_game_command(self, update: Update, context: CallbackContext) -> int:
-        update.message.reply_text("Game ended. Type /start if you want to play again.")
+        self.__send(Messages.GAME_END, context, update)
         return ConversationHandler.END
 
     def receive_description_from_user(self, update: Update, context: CallbackContext) -> None:
@@ -172,15 +160,12 @@ class Bot:
             update.effective_user.id,
             update.message.text
         )
-        update.message.reply_text("Your answer was saved.")
+        self.__send(Messages.ANSWER_SAVED, context, update)
 
         if len(self.controller.get_users_in_room(room_id)) == \
                 len(self.controller.get_current_user_descriptions(room_id)):
             chat_id = room_id_to_chat_id(room_id)
-            context.bot.send_message(
-                chat_id,
-                "All participants have published their answers, you can safely type /vote now."
-            )
+            self.__send(Messages.VOTE_READY, context, update, chat_id=chat_id)
 
     def start(self):
         updater = Updater(self.token, use_context=True)
