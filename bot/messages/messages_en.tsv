@@ -1,0 +1,17 @@
+code	text
+START	Hi!\nAll users who want to participate in game should type /add_me.\nAfter that type /start_game to start game.
+ADD_ME_SUCCESS	Done! You have been added to the game. When everybody is ready type /start_game.
+ADD_ME_DUB	You have been already added to the game.
+UNKNOWN_USER	You are not a participant of the game, please type /add_me first.
+GAME_START_1	I'm starting the game.
+GAME_START_2	Game has been set up.
+ROUND_START_1	Next word: {word}
+ROUND_START_2	When everybody has finished answering type /vote to start vote.
+NO_VERSIONS	Nobody has published their versions yet, can't start a vote.
+ANSWER_SAVED	Your answer was saved.
+VOTE_READY	All participants have published their answers, you can safely type /vote now.
+VOTE_SUCCESS	Everybody has voted. To see results type /results.
+ROUND_END_1	Results:\n{results}
+ROUND_END_2	To start next round type /next.
+QUESTIONS_ENDED	Questions ended, to start new game type /start_game
+GAME_END	Game ended. Type /start if you want to play again.
