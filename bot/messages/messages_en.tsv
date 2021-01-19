@@ -14,4 +14,5 @@ VOTE_SUCCESS	Everybody has voted. To see results type /results.
 ROUND_END_1	Results:\n{results}
 ROUND_END_2	To start next round type /next.
 QUESTIONS_ENDED	Questions ended, to start new game type /start_game
+PRIVATE_NEED_REPLY	Please send your version as a reply to message with word
 GAME_END	Game ended. Type /start if you want to play again.
