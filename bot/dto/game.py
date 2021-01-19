@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from bot.data.question_set import QuestionSet
+from bot.dto.question_set import QuestionSet
 
 
 @dataclass

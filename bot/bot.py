@@ -1,12 +1,14 @@
 from enum import Enum, auto
 import random
+import pathlib
 
 from telegram import Update, ForceReply
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, \
     CallbackContext, ConversationHandler, PollAnswerHandler
 
-from bot.controller import StorageController
-from bot.messages.message_reader import MessageReader, Messages
+from bot.storage.inmemory.controller import InmemoryStorageController
+from bot.messages.message_reader import MessageReader
+from bot.messages.message import Message
 
 from wordlist import generate_wordlist
 
@@ -26,14 +28,14 @@ class Bot:
         WAIT_VOTE = auto()
         ROUND_FINISH = auto()
 
-    def __init__(self, token):
+    def __init__(self, token, assets_path: pathlib.Path):
         self.token = token
-        self.controller = StorageController()
-        self.message_reader = MessageReader()
+        self.storage_controller = InmemoryStorageController()
+        self.message_reader = MessageReader(assets_path)
 
         self.words_per_game = 4
 
-    def __send(self, message: Messages, context: CallbackContext, update: Update,
+    def __send(self, message: Message, context: CallbackContext, update: Update,
                reply=True, chat_id=None, format_kwargs=None, send_message_kwargs=None):
         if format_kwargs is None:
             format_kwargs = {}
@@ -48,82 +50,82 @@ class Bot:
 
     def start_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
-        self.controller.create_room(room_id)
-        self.__send(Messages.START, context, update)
+        self.storage_controller.create_room(room_id)
+        self.__send(Message.START, context, update)
         return Bot.State.INIT_STATE
 
     def add_me_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
-        if not self.controller.is_user_in_room(room_id, update.effective_user.id):
-            self.controller.add_user_to_room(room_id, update.effective_user)
-            self.__send(Messages.ADD_ME_SUCCESS, context, update)
+        if not self.storage_controller.is_user_in_room(room_id, update.effective_user.id):
+            self.storage_controller.add_user_to_room(room_id, update.effective_user)
+            self.__send(Message.ADD_ME_SUCCESS, context, update)
         else:
-            self.__send(Messages.ADD_ME_DUB, context, update)
+            self.__send(Message.ADD_ME_DUB, context, update)
         return Bot.State.INIT_STATE
 
     def start_game_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
-        if not self.controller.is_user_in_room(room_id, update.effective_user.id):
-            self.__send(Messages.UNKNOWN_USER, context, update)
+        if not self.storage_controller.is_user_in_room(room_id, update.effective_user.id):
+            self.__send(Message.UNKNOWN_USER, context, update)
             return Bot.State.INIT_STATE
-        self.__send(Messages.GAME_START_1, context, update)
-        self.controller.start_game(room_id, generate_wordlist(self.words_per_game))
-        self.__send(Messages.GAME_START_2, context, update, reply=False)
-        word = self.controller.get_current_word(room_id)
-        self.__send(Messages.ROUND_START_1, context, update, reply=False, format_kwargs={'word': word})
-        self.__send(Messages.ROUND_START_2, context, update, reply=False)
-        for user_id in self.controller.get_users_in_room(room_id):
+        self.__send(Message.GAME_START_1, context, update)
+        self.storage_controller.start_game(room_id, generate_wordlist(self.words_per_game))
+        self.__send(Message.GAME_START_2, context, update, reply=False)
+        word = self.storage_controller.get_current_word(room_id)
+        self.__send(Message.ROUND_START_1, context, update, reply=False, format_kwargs={'word': word})
+        self.__send(Message.ROUND_START_2, context, update, reply=False)
+        for user_id in self.storage_controller.get_users_in_room(room_id):
             sent_message = self.__send(
-                Messages.ROUND_START_1, context, update,
+                Message.ROUND_START_1, context, update,
                 chat_id=user_id, format_kwargs={'word': word}, send_message_kwargs={'reply_markup': ForceReply()}
             )
-            self.controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
+            self.storage_controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
         return Bot.State.WAIT_ANS
 
     def vote_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
-        if not self.controller.get_current_user_descriptions(room_id):
-            self.__send(Messages.NO_VERSIONS, context, update)
+        if not self.storage_controller.get_current_user_descriptions(room_id):
+            self.__send(Message.NO_VERSIONS, context, update)
             return Bot.State.WAIT_ANS
 
-        description_order = [(self.controller.get_current_description(room_id), None)]
+        description_order = [(self.storage_controller.get_current_description(room_id), None)]
         description_order.extend((
             (description, user_id)
-            for user_id, description in self.controller.get_current_user_descriptions(room_id).items()
+            for user_id, description in self.storage_controller.get_current_user_descriptions(room_id).items()
         ))
         assert len(description_order) > 1
 
         random.shuffle(description_order)
-        self.controller.set_poll_description_order(room_id, description_order)
+        self.storage_controller.set_poll_description_order(room_id, description_order)
 
         sent_message = update.message.reply_poll(
-            f'{self.controller.get_current_word(room_id)}',
+            f'{self.storage_controller.get_current_word(room_id)}',
             [description[:100] for description, user in description_order],
             is_anonymous=False,
         )
-        self.controller.add_poll(room_id, sent_message.poll.id, sent_message.message_id)
+        self.storage_controller.add_poll(room_id, sent_message.poll.id, sent_message.message_id)
         return Bot.State.WAIT_VOTE
 
     def vote_poll_answer(self, update: Update, context: CallbackContext):
-        room_id = self.controller.get_room_id_by_poll_id(update.poll_answer.poll_id)
+        room_id = self.storage_controller.get_room_id_by_poll_id(update.poll_answer.poll_id)
         chat_id = room_id_to_chat_id(room_id)
         if room_id is None:
             return
-        self.controller.add_user_vote(room_id, update.poll_answer.user.id, update.poll_answer.option_ids[0])
+        self.storage_controller.add_user_vote(room_id, update.poll_answer.user.id, update.poll_answer.option_ids[0])
 
-        if len(self.controller.get_user_votes(room_id)) == len(self.controller.get_users_in_room(room_id)):
+        if len(self.storage_controller.get_user_votes(room_id)) == len(self.storage_controller.get_users_in_room(room_id)):
             context.bot.stop_poll(
-                chat_id, self.controller.get_poll_message_id(room_id)
+                chat_id, self.storage_controller.get_poll_message_id(room_id)
             )
-            self.__send(Messages.VOTE_SUCCESS, context, update, chat_id=chat_id)
+            self.__send(Message.VOTE_SUCCESS, context, update, chat_id=chat_id)
 
     def results_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
-        user_dict = self.controller.get_users_in_room(room_id)
+        user_dict = self.storage_controller.get_users_in_room(room_id)
         results = {user_id: 0 for user_id in user_dict}
         results['official'] = 0
-        description_order = self.controller.get_description_order(room_id)
-        for user_id, vote in self.controller.get_user_votes(room_id).items():
+        description_order = self.storage_controller.get_description_order(room_id)
+        for user_id, vote in self.storage_controller.get_user_votes(room_id).items():
             author_id = description_order[vote][1]
             if author_id is None:
                 results['official'] += 1
@@ -133,51 +135,51 @@ class Bot:
             f'{user_dict[user_id].username if user_id != "official" else user_id}: {result}'
             for user_id, result in results.items()
         )
-        self.__send(Messages.ROUND_END_1, context, update, format_kwargs={'results': result_string})
-        self.__send(Messages.ROUND_END_2, context, update, chat_id=room_id_to_chat_id(room_id))
+        self.__send(Message.ROUND_END_1, context, update, format_kwargs={'results': result_string})
+        self.__send(Message.ROUND_END_2, context, update, chat_id=room_id_to_chat_id(room_id))
         return Bot.State.ROUND_FINISH
 
     def next_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
         try:
-            self.controller.next_round(room_id)
+            self.storage_controller.next_round(room_id)
         except IndexError:
-            self.__send(Messages.QUESTIONS_ENDED, context, update)
+            self.__send(Message.QUESTIONS_ENDED, context, update)
             return Bot.State.INIT_STATE
-        word = self.controller.get_current_word(room_id)
-        self.__send(Messages.ROUND_START_1, context, update, format_kwargs={'word': word})
-        self.__send(Messages.ROUND_START_2, context, update, reply=False)
-        for user_id in self.controller.get_users_in_room(room_id):
+        word = self.storage_controller.get_current_word(room_id)
+        self.__send(Message.ROUND_START_1, context, update, format_kwargs={'word': word})
+        self.__send(Message.ROUND_START_2, context, update, reply=False)
+        for user_id in self.storage_controller.get_users_in_room(room_id):
             sent_message = self.__send(
-                Messages.ROUND_START_1, context, update,
+                Message.ROUND_START_1, context, update,
                 chat_id=user_id, format_kwargs={'word': word}, send_message_kwargs={'reply_markup': ForceReply()}
             )
-            self.controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
+            self.storage_controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
         return Bot.State.WAIT_ANS
 
     def stop_game_command(self, update: Update, context: CallbackContext) -> int:
-        self.__send(Messages.GAME_END, context, update)
+        self.__send(Message.GAME_END, context, update)
         return ConversationHandler.END
 
     def receive_description_from_user(self, update: Update, context: CallbackContext) -> None:
         if not update.message.reply_to_message:
-            self.__send(Messages.PRIVATE_NEED_REPLY, context, update, chat_id=update.effective_user.id)
+            self.__send(Message.PRIVATE_NEED_REPLY, context, update, chat_id=update.effective_user.id)
             return
-        room_id = self.controller.get_room_id_by_private_message_id(
+        room_id = self.storage_controller.get_room_id_by_private_message_id(
             update.effective_user.id,
             update.message.reply_to_message.message_id,
         )
-        self.controller.add_user_description(
+        self.storage_controller.add_user_description(
             room_id,
             update.effective_user.id,
             update.message.text
         )
-        self.__send(Messages.ANSWER_SAVED, context, update)
+        self.__send(Message.ANSWER_SAVED, context, update)
 
-        if len(self.controller.get_users_in_room(room_id)) == \
-                len(self.controller.get_current_user_descriptions(room_id)):
+        if len(self.storage_controller.get_users_in_room(room_id)) == \
+                len(self.storage_controller.get_current_user_descriptions(room_id)):
             chat_id = room_id_to_chat_id(room_id)
-            self.__send(Messages.VOTE_READY, context, update, chat_id=chat_id)
+            self.__send(Message.VOTE_READY, context, update, chat_id=chat_id)
 
     def start(self):
         updater = Updater(self.token, use_context=True)

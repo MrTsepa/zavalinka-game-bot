@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 import typing
 
-from bot.data.room import Room
+from bot.dto.room import Room
 
 
 @dataclass

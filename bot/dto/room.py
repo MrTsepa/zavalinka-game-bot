@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 import typing
 
-from bot.data.game import Game
-from bot.data.game_state import GameState
-from bot.data.user import User
+from bot.dto.game import Game
+from bot.dto.game_state import GameState
+from bot.dto.user import User
 
 
 @dataclass
