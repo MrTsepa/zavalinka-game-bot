@@ -1,7 +1,7 @@
 from enum import Enum, auto
 import random
 
-from telegram import Update, Chat
+from telegram import Update, ForceReply
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, \
     CallbackContext, ConversationHandler, PollAnswerHandler
 
@@ -31,15 +31,20 @@ class Bot:
         self.controller = StorageController()
         self.message_reader = MessageReader()
 
-        self.words_per_game = 1
+        self.words_per_game = 4
 
-    def __send(self, message, context, update, reply=True, chat_id=None, format_kwargs={}):
+    def __send(self, message: Messages, context: CallbackContext, update: Update,
+               reply=True, chat_id=None, format_kwargs=None, send_message_kwargs=None):
+        if format_kwargs is None:
+            format_kwargs = {}
+        if send_message_kwargs is None:
+            send_message_kwargs = {}
         message = self.message_reader[message].format(**format_kwargs)
         if chat_id is not None:
-            return context.bot.send_message(chat_id, message)
+            return context.bot.send_message(chat_id, message, **send_message_kwargs)
         if reply:
-            return update.message.reply_text(message)
-        return context.bot.send_message(update.effective_chat.id, message)
+            return update.message.reply_text(message, **send_message_kwargs)
+        return context.bot.send_message(update.effective_chat.id, message, **send_message_kwargs)
 
     def start_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
@@ -68,7 +73,10 @@ class Bot:
         self.__send(Messages.ROUND_START_1, context, update, reply=False, format_kwargs={'word': word})
         self.__send(Messages.ROUND_START_2, context, update, reply=False)
         for user_id in self.controller.get_users_in_room(room_id):
-            sent_message = self.__send(Messages.ROUND_START_1, context, update, chat_id=user_id, format_kwargs={'word': word})
+            sent_message = self.__send(
+                Messages.ROUND_START_1, context, update,
+                chat_id=user_id, format_kwargs={'word': word}, send_message_kwargs={'reply_markup': ForceReply()}
+            )
             self.controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
         return Bot.State.WAIT_ANS
 
@@ -140,7 +148,10 @@ class Bot:
         self.__send(Messages.ROUND_START_1, context, update, format_kwargs={'word': word})
         self.__send(Messages.ROUND_START_2, context, update, reply=False)
         for user_id in self.controller.get_users_in_room(room_id):
-            sent_message = self.__send(Messages.ROUND_START_1, context, update, chat_id=user_id, format_kwargs={'word': word})
+            sent_message = self.__send(
+                Messages.ROUND_START_1, context, update,
+                chat_id=user_id, format_kwargs={'word': word}, send_message_kwargs={'reply_markup': ForceReply()}
+            )
             self.controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
         return Bot.State.WAIT_ANS
 
@@ -149,7 +160,8 @@ class Bot:
         return ConversationHandler.END
 
     def receive_description_from_user(self, update: Update, context: CallbackContext) -> None:
-        if update.effective_chat.type != Chat.PRIVATE:
+        if not update.message.reply_to_message:
+            self.__send(Messages.PRIVATE_NEED_REPLY, context, update, chat_id=update.effective_user.id)
             return
         room_id = self.controller.get_room_id_by_private_message_id(
             update.effective_user.id,
@@ -189,7 +201,7 @@ class Bot:
             allow_reentry=True,
         ))
         dispatcher.add_handler(PollAnswerHandler(self.vote_poll_answer))
-        dispatcher.add_handler(MessageHandler(Filters.reply, self.receive_description_from_user))
+        dispatcher.add_handler(MessageHandler(Filters.chat_type.private, self.receive_description_from_user))
 
         updater.start_polling()
 

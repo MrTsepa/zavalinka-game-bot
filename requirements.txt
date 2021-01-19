@@ -6,3 +6,4 @@ more-itertools
 beautifulsoup4
 requests
 wordfreq
+pandas
