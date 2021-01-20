@@ -1,8 +1,9 @@
 from enum import Enum, auto
 import random
 import pathlib
+from typing import Optional
 
-from telegram import Update, ForceReply
+from telegram import Update, ForceReply, Message as TelegramMessage
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, \
     CallbackContext, ConversationHandler, PollAnswerHandler
 
@@ -36,7 +37,8 @@ class Bot:
         self.words_per_game = 4
 
     def __send(self, message: Message, context: CallbackContext, update: Update,
-               reply=True, chat_id=None, format_kwargs=None, send_message_kwargs=None):
+               reply: bool = True, chat_id: Optional[int] = None, format_kwargs: Optional[dict] = None,
+               send_message_kwargs: Optional[dict] = None) -> TelegramMessage:
         if format_kwargs is None:
             format_kwargs = {}
         if send_message_kwargs is None:
