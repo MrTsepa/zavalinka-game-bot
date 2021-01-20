@@ -1,16 +1,20 @@
 import typing
 
-from bot.data.storage import Storage
-from bot.data.room import Room
-from bot.data.user import User
-from bot.data.game import Game
-from bot.data.game_state import GameState
-from bot.data.question_set import QuestionSet
-from bot.data.question import Question
+from bot.dto.room import Room
+from bot.dto.user import User
+from bot.dto.game import Game
+from bot.dto.game_state import GameState
+from bot.dto.question_set import QuestionSet
+from bot.dto.question import Question
+
+from bot.storage.storage_controller_base import StorageControllerBase
+
+from bot.storage.inmemory.storage import Storage
 
 
-class StorageController:
-    def __init__(self):
+class InmemoryStorageController(StorageControllerBase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.storage = Storage()
 
     def create_room(self, room_id: Room.ID_TYPE) -> None:

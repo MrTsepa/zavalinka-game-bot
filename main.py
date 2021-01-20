@@ -1,7 +1,8 @@
-from private_messages_bot.private_messages_bot import PrivateMessagesBot
+import logging
+import pathlib
+
 from bot.bot import Bot
 
-import logging
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
@@ -13,7 +14,7 @@ def main():
     with open('.token', 'r') as f:
         TOKEN = f.readline()
 
-    bot = Bot(TOKEN)
+    bot = Bot(TOKEN, pathlib.Path('assets'))
     bot.start()
 
 

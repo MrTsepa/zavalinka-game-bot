@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 import typing
 
-from bot.data.question import Question
+from bot.dto.question import Question
 
 
 @dataclass
