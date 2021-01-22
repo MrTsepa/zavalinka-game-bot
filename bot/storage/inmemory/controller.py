@@ -23,6 +23,11 @@ class InmemoryStorageController(StorageControllerBase):
     def add_user_to_room(self, room_id: Room.ID_TYPE, user: User) -> None:
         self.storage.rooms[room_id].participants[user.id] = user
 
+    def remove_user_from_room(self, room_id: Room.ID_TYPE, user: User) -> None:
+        room = self.storage.rooms[room_id]
+        if user.id in room.participants:
+            room.participants.pop(user.id)
+
     def is_user_in_room(self, room_id: Room.ID_TYPE, user_id: int) -> bool:
         return user_id in self.storage.rooms[room_id].participants
 
