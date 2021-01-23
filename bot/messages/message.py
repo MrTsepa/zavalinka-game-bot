@@ -5,6 +5,8 @@ class Message(Enum):
     START = auto()
     ADD_ME_SUCCESS = auto()
     ADD_ME_DUB = auto()
+    REMOVE_ME_SUCCESS = auto()
+    REMOVE_ME_FAIL = auto()
     UNKNOWN_USER = auto()
     GAME_START_1 = auto()
     GAME_START_2 = auto()

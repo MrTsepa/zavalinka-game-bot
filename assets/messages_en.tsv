@@ -2,6 +2,8 @@ code	text
 START	Hi!\nAll users who want to participate in game should type /add_me.\nAfter that type /start_game to start game.
 ADD_ME_SUCCESS	Done! You have been added to the game. When everybody is ready type /start_game.
 ADD_ME_DUB	You have been already added to the game.
+REMOVE_ME_SUCCESS	Done! You have been removed from the game.
+REMOVE_ME_FAIL	You are not a participant of the game.
 UNKNOWN_USER	You are not a participant of the game, please type /add_me first.
 GAME_START_1	I'm starting the game.
 GAME_START_2	Game has been set up.

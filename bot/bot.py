@@ -56,14 +56,28 @@ class Bot:
         self.__send(Message.START, context, update)
         return Bot.State.INIT_STATE
 
-    def add_me_command(self, update: Update, context: CallbackContext) -> State:
+    def add_me_command(self, update: Update, context: CallbackContext) -> Optional[State]:
         room_id = chat_id_to_room_id(update.effective_chat.id)
         if not self.storage_controller.is_user_in_room(room_id, update.effective_user.id):
             self.storage_controller.add_user_to_room(room_id, update.effective_user)
             self.__send(Message.ADD_ME_SUCCESS, context, update)
         else:
             self.__send(Message.ADD_ME_DUB, context, update)
-        return Bot.State.INIT_STATE
+        return None
+
+    def remove_me_command(self, update: Update, context: CallbackContext) -> Optional[State]:
+        room_id = chat_id_to_room_id(update.effective_chat.id)
+        if not self.storage_controller.is_user_in_room(room_id, update.effective_user.id):
+            self.__send(Message.REMOVE_ME_FAIL, context, update)
+            return None
+
+        self.storage_controller.remove_user_from_room(room_id, update.effective_user)
+        self.__send(Message.REMOVE_ME_SUCCESS, context, update)
+
+        if not self.storage_controller.get_users_in_room(room_id):
+            self.__send(Message.GAME_END, context, update)
+            return ConversationHandler.END
+        return None
 
     def start_game_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
@@ -191,12 +205,25 @@ class Bot:
             entry_points=[CommandHandler("start", self.start_command)],
             states={
                 Bot.State.INIT_STATE: [
+                    CommandHandler("start_game", self.start_game_command),
                     CommandHandler("add_me", self.add_me_command),
-                    CommandHandler("start_game", self.start_game_command)
+                    CommandHandler("remove_me", self.remove_me_command),
                 ],
-                Bot.State.WAIT_ANS: [CommandHandler("vote", self.vote_command)],
-                Bot.State.WAIT_VOTE: [CommandHandler("results", self.results_command)],
-                Bot.State.ROUND_FINISH: [CommandHandler("next", self.next_command)],
+                Bot.State.WAIT_ANS: [
+                    CommandHandler("vote", self.vote_command),
+                    CommandHandler("add_me", self.add_me_command),
+                    CommandHandler("remove_me", self.remove_me_command),
+                ],
+                Bot.State.WAIT_VOTE: [
+                    CommandHandler("results", self.results_command),
+                    CommandHandler("add_me", self.add_me_command),
+                    CommandHandler("remove_me", self.remove_me_command),
+                ],
+                Bot.State.ROUND_FINISH: [
+                    CommandHandler("next", self.next_command),
+                    CommandHandler("add_me", self.add_me_command),
+                    CommandHandler("remove_me", self.remove_me_command),
+                ],
             },
             fallbacks=[CommandHandler("stop_game", self.stop_game_command)],
             per_chat=True,
