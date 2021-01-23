@@ -93,6 +93,8 @@ class ConversationHandler(TelegramConversationHandler):
             update: HandlerArg,
             context: CallbackContext,
     ) -> None:
-        if new_state in self.state_entry_callbacks:
-            self.state_entry_callbacks[new_state](update, context)
+        old_state = context.bot_data['conversation_context'].old_state
+        if new_state is not None:
+            if new_state in self.state_entry_callbacks and new_state != old_state:
+                self.state_entry_callbacks[new_state](update, context)
         super(ConversationHandler, self).update_state(new_state, key)

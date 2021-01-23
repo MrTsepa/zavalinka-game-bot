@@ -94,15 +94,6 @@ class Bot:
         self.__send(Message.GAME_START_1, context, update)
         self.storage_controller.start_game(room_id, generate_wordlist(self.words_per_game))
         self.__send(Message.GAME_START_2, context, update, reply=False)
-        word = self.storage_controller.get_current_word(room_id)
-        self.__send(Message.ROUND_START_1, context, update, reply=False, format_kwargs={'word': word})
-        self.__send(Message.ROUND_START_2, context, update, reply=False)
-        for user_id in self.storage_controller.get_users_in_room(room_id):
-            sent_message = self.__send(
-                Message.ROUND_START_1, context, update,
-                chat_id=user_id, format_kwargs={'word': word}, send_message_kwargs={'reply_markup': ForceReply()}
-            )
-            self.storage_controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
         return Bot.State.WAIT_ANS
 
     def vote_command(self, update: Update, context: CallbackContext) -> State:
@@ -169,15 +160,6 @@ class Bot:
         except IndexError:
             self.__send(Message.QUESTIONS_ENDED, context, update)
             return Bot.State.INIT_STATE
-        word = self.storage_controller.get_current_word(room_id)
-        self.__send(Message.ROUND_START_1, context, update, format_kwargs={'word': word})
-        self.__send(Message.ROUND_START_2, context, update, reply=False)
-        for user_id in self.storage_controller.get_users_in_room(room_id):
-            sent_message = self.__send(
-                Message.ROUND_START_1, context, update,
-                chat_id=user_id, format_kwargs={'word': word}, send_message_kwargs={'reply_markup': ForceReply()}
-            )
-            self.storage_controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
         return Bot.State.WAIT_ANS
 
     def stop_game_command(self, update: Update, context: CallbackContext) -> int:
@@ -207,6 +189,18 @@ class Bot:
     def end_state_entry(self, update: Update, context: CallbackContext) -> None:
         room_id = chat_id_to_room_id(update.effective_chat.id)
         self.storage_controller.remove_room(room_id)
+
+    def wait_ans_entry(self, update: Update, context: CallbackContext) -> None:
+        room_id = chat_id_to_room_id(update.effective_chat.id)
+        word = self.storage_controller.get_current_word(room_id)
+        self.__send(Message.ROUND_START_1, context, update, reply=False, format_kwargs={'word': word})
+        self.__send(Message.ROUND_START_2, context, update, reply=False)
+        for user_id in self.storage_controller.get_users_in_room(room_id):
+            sent_message = self.__send(
+                Message.ROUND_START_1, context, update,
+                chat_id=user_id, format_kwargs={'word': word}, send_message_kwargs={'reply_markup': ForceReply()}
+            )
+            self.storage_controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
 
     def start(self):
         updater = Updater(self.token, use_context=True)
@@ -238,6 +232,7 @@ class Bot:
             },
             state_entry_callbacks={
                 ConversationHandler.END: self.end_state_entry,
+                Bot.State.WAIT_ANS: self.wait_ans_entry,
             },
             fallbacks=[CommandHandler("stop_game", self.stop_game_command)],
             per_chat=True,
