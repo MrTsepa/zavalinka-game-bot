@@ -69,9 +69,14 @@ class Bot:
         room_id = chat_id_to_room_id(update.effective_chat.id)
         if not self.storage_controller.is_user_in_room(room_id, update.effective_user.id):
             self.__send(Message.REMOVE_ME_FAIL, context, update)
-        else:
-            self.storage_controller.remove_user_from_room(room_id, update.effective_user)
-            self.__send(Message.REMOVE_ME_SUCCESS, context, update)
+            return None
+
+        self.storage_controller.remove_user_from_room(room_id, update.effective_user)
+        self.__send(Message.REMOVE_ME_SUCCESS, context, update)
+
+        if not self.storage_controller.get_users_in_room(room_id):
+            self.__send(Message.GAME_END, context, update)
+            return ConversationHandler.END
         return None
 
     def start_game_command(self, update: Update, context: CallbackContext) -> State:
