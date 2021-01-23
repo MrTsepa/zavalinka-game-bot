@@ -204,6 +204,10 @@ class Bot:
             chat_id = room_id_to_chat_id(room_id)
             self.__send(Message.VOTE_READY, context, update, chat_id=chat_id)
 
+    def end_state_entry(self, update: Update, context: CallbackContext) -> None:
+        room_id = chat_id_to_room_id(update.effective_chat.id)
+        self.storage_controller.remove_room(room_id)
+
     def start(self):
         updater = Updater(self.token, use_context=True)
 
@@ -231,6 +235,9 @@ class Bot:
                     CommandHandler("add_me", self.add_me_command),
                     CommandHandler("remove_me", self.remove_me_command),
                 ],
+            },
+            state_entry_callbacks={
+                ConversationHandler.END: self.end_state_entry,
             },
             fallbacks=[CommandHandler("stop_game", self.stop_game_command)],
             per_chat=True,

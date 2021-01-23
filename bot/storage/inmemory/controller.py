@@ -20,6 +20,9 @@ class InmemoryStorageController(StorageControllerBase):
     def create_room(self, room_id: Room.ID_TYPE) -> None:
         self.storage.rooms[room_id] = Room(room_id)
 
+    def remove_room(self, room_id: Room.ID_TYPE) -> None:
+        self.storage.rooms.pop(room_id, None)
+
     def add_user_to_room(self, room_id: Room.ID_TYPE, user: User) -> None:
         self.storage.rooms[room_id].participants[user.id] = user
 
