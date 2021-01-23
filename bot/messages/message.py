@@ -20,4 +20,5 @@ class Message(Enum):
     ROUND_END_2 = auto()
     QUESTIONS_ENDED = auto()
     PRIVATE_NEED_REPLY = auto()
+    GAME_END_EVERYBODY_LEFT = auto()
     GAME_END = auto()

@@ -5,7 +5,10 @@ from typing import Optional
 
 from telegram import Update, ForceReply, Message as TelegramMessage
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, \
-    CallbackContext, ConversationHandler, PollAnswerHandler
+    CallbackContext, PollAnswerHandler
+
+from bot.telegram_extensions.handlers.conversation_handler import ConversationHandler
+from bot.telegram_extensions.conversation_context import ConversationContext
 
 from bot.storage.inmemory.controller import InmemoryStorageController
 from bot.messages.message_reader import MessageReader
@@ -74,8 +77,12 @@ class Bot:
         self.storage_controller.remove_user_from_room(room_id, update.effective_user)
         self.__send(Message.REMOVE_ME_SUCCESS, context, update)
 
+        conversation_context: Optional[ConversationContext] = context.bot_data.get('conversation_context', None)
+        if conversation_context and conversation_context.old_state == Bot.State.INIT_STATE:
+            return None
+
         if not self.storage_controller.get_users_in_room(room_id):
-            self.__send(Message.GAME_END, context, update)
+            self.__send(Message.GAME_END_EVERYBODY_LEFT, context, update)
             return ConversationHandler.END
         return None
 
