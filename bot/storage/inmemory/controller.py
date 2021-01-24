@@ -7,6 +7,8 @@ from bot.dto.game_state import GameState
 from bot.dto.question_set import QuestionSet
 from bot.dto.question import Question
 
+from bot.storage.exceptions import RoomNotFoundError
+
 from bot.storage.storage_controller_base import StorageControllerBase
 
 from bot.storage.inmemory.storage import Storage
@@ -65,11 +67,12 @@ class InmemoryStorageController(StorageControllerBase):
         room = self.storage.rooms[room_id]
         room.game_state.user_question_message_id[user_id] = message_id
 
-    def get_room_id_by_private_message_id(self, user_id: int, message_id: int) -> typing.Optional[Room.ID_TYPE]:
+    def get_room_id_by_private_message_id(self, user_id: int, message_id: int) -> Room.ID_TYPE:
         user_rooms = list(filter(lambda room: user_id in room.participants, self.storage.rooms.values()))
         for room in user_rooms:
             if room.game_state.user_question_message_id[user_id] == message_id:
                 return room.id
+        raise RoomNotFoundError
 
     def add_user_description(self, room_id: Room.ID_TYPE, user_id: int, description: str) -> None:
         self.storage.rooms[room_id].game_state.user_descriptions[user_id] = description
