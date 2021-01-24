@@ -11,6 +11,9 @@ class StorageControllerBase:
     def create_room(self, room_id: Room.ID_TYPE) -> None:
         raise NotImplementedError()
 
+    def remove_room(self, room_id: Room.ID_TYPE) -> None:
+        raise NotImplementedError()
+
     def add_user_to_room(self, room_id: Room.ID_TYPE, user: User) -> None:
         raise NotImplementedError()
 
