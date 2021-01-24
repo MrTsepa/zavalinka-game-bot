@@ -10,6 +10,8 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, \
 from bot.telegram_extensions.handlers.conversation_handler import ConversationHandler
 from bot.telegram_extensions.conversation_context import ConversationContext
 
+from bot.storage.exceptions import RoomNotFoundError
+
 from bot.storage.inmemory.controller import InmemoryStorageController
 from bot.messages.message_reader import MessageReader
 from bot.messages.message import Message
@@ -170,10 +172,14 @@ class Bot:
         if not update.message.reply_to_message:
             self.__send(Message.PRIVATE_NEED_REPLY, context, update, chat_id=update.effective_user.id)
             return
-        room_id = self.storage_controller.get_room_id_by_private_message_id(
-            update.effective_user.id,
-            update.message.reply_to_message.message_id,
-        )
+        try:
+            room_id = self.storage_controller.get_room_id_by_private_message_id(
+                update.effective_user.id,
+                update.message.reply_to_message.message_id,
+            )
+        except RoomNotFoundError:
+            self.__send(Message.PRIVATE_ROOM_NOT_FOUND, context, update)
+            return
         self.storage_controller.add_user_description(
             room_id,
             update.effective_user.id,
