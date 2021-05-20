@@ -1,54 +1,58 @@
 from enum import Enum
 import string
+from typing import Dict, List
 
 import bs4
 
+from Morphology import POS
+
 
 class Word(object):
-    class POS(Enum):
-        Noun = 1
-        Adj = 2
-        Verb = 3
-        Other = 4
-
     def __init__(self, text=None, grammar=None, meanings=None):
         self.text = text
-        self.grammar = grammar
+        self.grammar_str = grammar
         self.meanings = meanings
+        self.pos = self.get_pos()
 
-    def get_pos(self):
-        if 'существительное' in self.grammar:
-            return Word.POS.Noun
-        elif 'прилагательное' in self.grammar:
-            return Word.POS.Adj
-        elif 'глагол' in self.grammar:
-            return Word.POS.Verb
+    def get_pos(self) -> POS:
+        if 'существительное' in self.grammar_str:
+            return POS.Noun
+        elif 'прилагательное' in self.grammar_str:
+            return POS.Adj
+        elif 'глагол' in self.grammar_str:
+            return POS.Verb
         else:
-            return Word.POS.Other
+            return POS.Other
+
+    def is_proper_noun(self) -> False :
+        if self.pos != POS.Noun:
+            return False
+        if 'имя собственное' in self.grammar_str:
+            return True
 
 
 class WiktionaryHtmlParser(object):
     def __init__(self, shortcuts=None):
         self.shortcuts = self.__parse_shortcuts(shortcuts)
 
-    def parse(self, html_doc):
+    def parse(self, html_doc: str) -> Word:
         soup = bs4.BeautifulSoup(html_doc, 'html.parser')
         word = soup.find('h1', id='firstHeading').get_text()
         grammar = self.__fetch_grammar(soup)
         meanings = self.__fetch_meanings(soup)
         return Word(word, grammar, meanings)
 
-    def __fetch_grammar(self, soup):
+    def __fetch_grammar(self, soup: bs4.BeautifulSoup) -> str:
         morphology = soup.find(id='Морфологические_и_синтаксические_свойства')
-        grammar = morphology.get_text() #.find_next('p').find_next('p')
+        grammar = morphology.get_text().lower() #.find_next('p').find_next('p')
         return grammar
 
-    def __fetch_meanings(self, soup):
+    def __fetch_meanings(self, soup: bs4.BeautifulSoup) -> List[str]:
         semantics = soup.find(id='Семантические_свойства')
         meanings = self.__parse_list(semantics.find_next('ol'))
         return meanings
 
-    def __parse_shortcuts(self, html_doc):
+    def __parse_shortcuts(self, html_doc: str) -> Dict:
         if html_doc is None:
             return dict()
         soup = bs4.BeautifulSoup(html_doc, 'html.parser')
