@@ -1,12 +1,12 @@
 import pandas as pd
 from wordfreq import zipf_frequency, word_frequency
 
-from wordlist.WiktionarySearcher import WiktionarySearcher
+from wordlist.RuWiktionary import RuWiktionary
 
 if __name__ == '__main__':
     wordlist = pd.read_csv('wordlist_sample.tsv', encoding='utf8', sep='\t')
 
-    wiki = WiktionarySearcher()
+    wiki = RuWiktionary()
     for word in wordlist.word.values:
         print(wiki.search_meaning(word))
         print('{} - {} | {}'.format(word,

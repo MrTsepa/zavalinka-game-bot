@@ -5,10 +5,17 @@ import requests
 import urllib
 
 from wordlist.WiktionaryHtmlParser import WiktionaryHtmlParser
+from wordlist.Morphology import POS
 
 
-class WiktionarySearcher(object):
+class RuWiktionary(object):
     url = 'https://ru.wiktionary.org/wiki/'
+    pos2category = {
+        POS.Noun: 'Русские_существительные',
+        POS.Adj: 'Русские_прилагательные',
+        POS.Verb: 'Русские_глаголы',
+        POS.Other: ''
+    }
 
     def __init__(self):
         self.parser = WiktionaryHtmlParser(self.__fetch_shortcuts())
@@ -16,7 +23,7 @@ class WiktionarySearcher(object):
 
     def search_meaning(self, word):
         encoded_word = urllib.parse.quote_plus(word)
-        r = requests.get(WiktionarySearcher.url + encoded_word)
+        r = requests.get(RuWiktionary.url + encoded_word)
         if r.status_code == requests.codes.not_found:
             self.logger.warning(f'Coudn\'t find meaning for word {word}')
             return
@@ -26,13 +33,8 @@ class WiktionarySearcher(object):
         return self.parser.parse(r.text).meanings
 
     def generate_word(self):
-        pos = random.choice([
-            'Русские_существительные',
-            # 'Русские_прилагательные',
-            # 'Русские_глаголы',
-            # 'Русские_наречия',
-        ])
-        url = WiktionarySearcher.url + urllib.parse.quote_plus(f'Служебная:RandomInCategory/{pos}')
+        pos = RuWiktionary.pos2category[POS.Noun]
+        url = RuWiktionary.url + urllib.parse.quote_plus(f'Служебная:RandomInCategory/{pos}')
         r = requests.get(url)
         if r.status_code != requests.codes.ok:
             r.raise_for_status()
@@ -41,7 +43,7 @@ class WiktionarySearcher(object):
         return word
 
     def __fetch_shortcuts(self):
-        url = WiktionarySearcher.url + urllib.parse.quote_plus('Викисловарь:Условные_сокращения')
+        url = RuWiktionary.url + urllib.parse.quote_plus('Викисловарь:Условные_сокращения')
         r = requests.get(url)
         if r.status_code != requests.codes.ok:
             r.raise_for_status()

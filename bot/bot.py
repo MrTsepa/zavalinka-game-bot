@@ -14,7 +14,7 @@ from bot.storage.inmemory.controller import InmemoryStorageController
 from bot.messages.message_reader import MessageReader
 from bot.messages.message import Message
 
-from wordlist import generate_wordlist
+from wordlist import generate_wordlist, format_description
 
 
 def chat_id_to_room_id(chat_id: int) -> str:
@@ -107,6 +107,9 @@ class Bot:
             (description, user_id)
             for user_id, description in self.storage_controller.get_current_user_descriptions(room_id).items()
         ))
+        description_order = list(
+            map(lambda desc_holder: (format_description(desc_holder[0]), desc_holder[1]), description_order)
+        )
         assert len(description_order) > 1
 
         random.shuffle(description_order)
