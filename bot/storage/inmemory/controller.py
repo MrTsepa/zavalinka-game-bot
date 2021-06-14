@@ -101,3 +101,12 @@ class InmemoryStorageController(StorageControllerBase):
 
     def get_user_votes(self, room_id: Room.ID_TYPE) -> typing.Dict[int, int]:
         return self.storage.rooms[room_id].game_state.user_votes
+
+    def add_scores(self, room_id: Room.ID_TYPE, scores: typing.Dict[User, int]) -> None:
+        room = self.storage.rooms[room_id]
+        for user, score in scores.items():
+            room.game.scoreboard.scores[user] += score
+
+    def get_scores(self, room_id: Room.ID_TYPE) -> typing.Dict[User, int]:
+        room = self.storage.rooms[room_id]
+        return room.game.scoreboard.scores

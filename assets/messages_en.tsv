@@ -15,7 +15,7 @@ NO_VERSIONS	Nobody has published their versions yet, can't start a vote.
 ANSWER_SAVED	Your answer was saved.
 VOTE_READY	All participants have published their answers, you can safely type /vote now.
 VOTE_SUCCESS	Everybody has voted. To see results type /results.
-ROUND_END_1	Results:\n{results}
+ROUND_END_1	Correct answer:\n{answer}\n\nResults:\n{results}
 ROUND_END_2	To start next round type /next.
 ROUND_END_2_DEBUG	You're using a debug mode. Use /next <word> to run a round with specific word.
 QUESTIONS_ENDED	Questions ended, to start new game type /start_game
@@ -23,3 +23,4 @@ PRIVATE_NEED_REPLY	Please send your version as a reply to the message with word.
 PRIVATE_ROOM_NOT_FOUND	You are not a participant of this game.
 GAME_END_EVERYBODY_LEFT	Game ended because everybody has left it. Type /start if you want to play again.
 GAME_END	Game ended. Type /start if you want to play again.
+SHOW_SCORES	Scoreboard\n{scores}

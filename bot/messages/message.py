@@ -26,3 +26,4 @@ class Message(Enum):
     PRIVATE_ROOM_NOT_FOUND = auto()
     GAME_END_EVERYBODY_LEFT = auto()
     GAME_END = auto()
+    SHOW_SCORES = auto()
