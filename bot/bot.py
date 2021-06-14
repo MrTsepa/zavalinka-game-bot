@@ -152,19 +152,24 @@ class Bot:
         room_id = chat_id_to_room_id(update.effective_chat.id)
         user_dict = self.storage_controller.get_users_in_room(room_id)
         results = {user_id: 0 for user_id in user_dict}
-        results['official'] = 0
         description_order = self.storage_controller.get_description_order(room_id)
         for user_id, vote in self.storage_controller.get_user_votes(room_id).items():
             author_id = description_order[vote][1]
             if author_id is None:
-                results['official'] += 1
+                results[user_id] += 2
             else:
                 results[author_id] += 1
+
+        self.storage_controller.add_scores(room_id, results)
+
         result_string = '\n'.join(
-            f'{user_dict[user_id].username if user_id != "official" else user_id}: {result}'
+            f'{user_dict[user_id].username}: {result}'
             for user_id, result in results.items()
         )
-        self.__send(Message.ROUND_END_1, context, update, format_kwargs={'results': result_string})
+
+        answer = '{} - {}'.format(self.storage_controller.get_current_word(room_id),
+            self.storage_controller.get_current_description(room_id))
+        self.__send(Message.ROUND_END_1, context, update, format_kwargs={'answer': answer, 'results': result_string})
         self.__send(Message.ROUND_END_2, context, update, chat_id=room_id_to_chat_id(room_id))
         if self.debug:
             self.__send(Message.ROUND_END_2_DEBUG, context, update)
@@ -215,6 +220,7 @@ class Bot:
 
     def end_state_entry(self, update: Update, context: CallbackContext) -> None:
         room_id = chat_id_to_room_id(update.effective_chat.id)
+        self.scores_command(update, context)
         self.storage_controller.remove_room(room_id)
 
     def wait_ans_entry(self, update: Update, context: CallbackContext) -> None:
@@ -233,33 +239,44 @@ class Bot:
     def skip_command(self, update: Update, context: CallbackContext) -> State:
         return self.next_command(update, context)
 
+    def scores_command(self, update: Update, context: CallbackContext) -> Optional[State]:
+        room_id = chat_id_to_room_id(update.effective_chat.id)
+        users = self.storage_controller.get_users_in_room(room_id)
+        scores = self.storage_controller.get_scores(room_id)
+        scores = sorted(scores.items(), key=lambda x: -x[1])
+        scores = map(lambda score: '{} - {}'.format(users[score[0]].username, score[1]), scores)
+        scores = '\n'.join(scores)
+        self.__send(Message.SHOW_SCORES, context, update, format_kwargs={'scores': scores})
+        return None
+
     def start(self):
         updater = Updater(self.token, use_context=True)
 
+        always_available_handlers = [
+            CommandHandler("add_me", self.add_me_command),
+            CommandHandler("remove_me", self.remove_me_command),
+            CommandHandler("scores", self.scores_command)
+        ]
         dispatcher = updater.dispatcher
         dispatcher.add_handler(ConversationHandler(
             entry_points=[CommandHandler("start", self.start_command)],
             states={
                 Bot.State.INIT_STATE: [
                     CommandHandler("start_game", self.start_game_command),
-                    CommandHandler("add_me", self.add_me_command),
-                    CommandHandler("remove_me", self.remove_me_command),
+                    *always_available_handlers
                 ],
                 Bot.State.WAIT_ANS: [
                     CommandHandler("skip", self.skip_command),
                     CommandHandler("vote", self.vote_command),
-                    CommandHandler("add_me", self.add_me_command),
-                    CommandHandler("remove_me", self.remove_me_command),
+                    *always_available_handlers
                 ],
                 Bot.State.WAIT_VOTE: [
                     CommandHandler("results", self.results_command),
-                    CommandHandler("add_me", self.add_me_command),
-                    CommandHandler("remove_me", self.remove_me_command),
+                    *always_available_handlers
                 ],
                 Bot.State.ROUND_FINISH: [
                     CommandHandler("next", self.next_command),
-                    CommandHandler("add_me", self.add_me_command),
-                    CommandHandler("remove_me", self.remove_me_command),
+                    *always_available_handlers
                 ],
             },
             state_entry_callbacks={

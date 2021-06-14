@@ -71,3 +71,9 @@ class StorageControllerBase:
 
     def get_user_votes(self, room_id: Room.ID_TYPE) -> typing.Dict[int, int]:
         raise NotImplementedError()
+
+    def add_scores(self, room_id: Room.ID_TYPE, scores: typing.Dict[User, int]) -> None:
+        raise NotImplementedError()
+
+    def get_scores(self, room_id: Room.ID_TYPE) -> typing.Dict[User, int]:
+        raise NotImplementedError()
