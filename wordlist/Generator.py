@@ -1,23 +1,42 @@
 import random
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from wordfreq import zipf_frequency
 
-from wordlist.WiktionarySearcher import WiktionarySearcher
+from wordlist.RuWiktionary import RuWiktionary
+
+
+def format_description(description: str) -> str:
+    if len(description) <= 0:
+        return description
+    return description[:1].upper() + description[1:]
 
 
 def generate_wordlist(n: int) -> List[Tuple[str, str]]:
-    wiki = WiktionarySearcher()
+    wiki = RuWiktionary()
     words = []
     while len(words) < n:
         try:
             word = wiki.generate_word()
         except Exception as e:
             continue
-        word, meanings = word.text, word.meanings
+        text, meanings = word.text, word.meanings
+        if word.is_proper_noun():
+            continue
         if not meanings:
             continue
-        freq = zipf_frequency(word, 'ru')
-        if freq <= 1:
-            words.append((word, random.choice(meanings)))
+        freq = zipf_frequency(text, 'ru')
+        if freq > 1:
+            continue
+        words.append((text, random.choice(meanings)))
     return words
+
+
+def generate_debug_wordlist(word: str) -> Tuple[str, str]:
+    wiki = RuWiktionary()
+    meanings = wiki.search_meaning(word)
+    if meanings:
+        return word, meanings[0]
+    else:
+        return word, 'NOT_FOUND'
+
