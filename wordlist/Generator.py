@@ -1,5 +1,5 @@
 import random
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from wordfreq import zipf_frequency
 
@@ -30,3 +30,13 @@ def generate_wordlist(n: int) -> List[Tuple[str, str]]:
             continue
         words.append((text, random.choice(meanings)))
     return words
+
+
+def generate_debug_wordlist(word: str) -> Tuple[str, str]:
+    wiki = RuWiktionary()
+    meanings = wiki.search_meaning(word)
+    if meanings:
+        return word, meanings[0]
+    else:
+        return word, 'NOT_FOUND'
+

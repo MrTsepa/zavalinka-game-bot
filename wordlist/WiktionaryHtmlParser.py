@@ -4,7 +4,7 @@ from typing import Dict, List
 
 import bs4
 
-from Morphology import POS
+from .Morphology import POS
 
 
 class Word(object):
