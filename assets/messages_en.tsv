@@ -11,11 +11,11 @@ GAME_START_2	Game has been set up.
 ROUND_START_1	Next word: {word}
 ROUND_START_SKIP	In case you know the word type /skip to go straight to the next word.
 ROUND_START_2	When everybody has finished answering type /vote to start vote.
-NO_VERSIONS	Nobody has published their versions yet, can't start a vote.
+NO_VERSIONS	Someone hasn't published versions yet, wait them or /stop_game and start new.
 ANSWER_SAVED	Your answer was saved.
 VOTE_READY	All participants have published their answers, you can safely type /vote now.
 VOTE_SUCCESS	Everybody has voted. To see results type /results.
-ROUND_END_1	Correct answer:\n{answer}\n\nResults:\n{results}
+ROUND_END_1	Correct answer:\n{answer}\n\nResults:\n{results}\n\nTo see the full scoreboard use /scores
 ROUND_END_2	To start next round type /next.
 ROUND_END_2_DEBUG	You're using a debug mode. Use /next <word> to run a round with specific word.
 QUESTIONS_ENDED	Questions ended, to start new game type /start_game

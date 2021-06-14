@@ -108,16 +108,17 @@ class Bot:
         self.__send(Message.GAME_START_2, context, update, reply=False)
         return Bot.State.WAIT_ANS
 
-    def vote_command(self, update: Update, context: CallbackContext) -> State:
+    def vote_command(self, update: Update, context: CallbackContext) -> Optional[State]:
         room_id = chat_id_to_room_id(update.effective_chat.id)
-        if not self.storage_controller.get_current_user_descriptions(room_id):
+        user_descriptions = self.storage_controller.get_current_user_descriptions(room_id)
+        if len(user_descriptions) != len(self.storage_controller.get_users_in_room(room_id)):
             self.__send(Message.NO_VERSIONS, context, update)
-            return Bot.State.WAIT_ANS
+            return
 
         description_order = [(self.storage_controller.get_current_description(room_id), None)]
         description_order.extend((
             (description, user_id)
-            for user_id, description in self.storage_controller.get_current_user_descriptions(room_id).items()
+            for user_id, description in user_descriptions.items()
         ))
         description_order = list(
             map(lambda desc_holder: (format_description(desc_holder[0]), desc_holder[1]), description_order)
