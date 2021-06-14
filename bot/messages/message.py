@@ -12,6 +12,7 @@ class Message(Enum):
     GAME_START_1 = auto()
     GAME_START_2 = auto()
     ROUND_START_1 = auto()
+    ROUND_START_SKIP = auto()
     ROUND_START_2 = auto()
     NO_VERSIONS = auto()
     ANSWER_SAVED = auto()
