@@ -1,3 +1,4 @@
+import configparser
 import logging
 import pathlib
 
@@ -11,10 +12,21 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    with open('.token', 'r') as f:
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    debug = False
+    if config['DEFAULT']['Debug'] == 'yes':
+        config = config['DEBUG']
+        debug = True
+        logger.info('Using debug mode')
+    else:
+        config = config['PROD']
+        logger.info('Using prod mode')
+
+    with open(config.get('Token'), 'r') as f:
         TOKEN = f.readline()
 
-    bot = Bot(TOKEN, pathlib.Path('assets'))
+    bot = Bot(TOKEN, pathlib.Path('assets'), debug=debug)
     bot.start()
 
 

@@ -1,4 +1,5 @@
 from enum import Enum, auto
+import logging
 import random
 import pathlib
 from typing import Optional
@@ -16,7 +17,7 @@ from bot.storage.inmemory.controller import InmemoryStorageController
 from bot.messages.message_reader import MessageReader
 from bot.messages.message import Message
 
-from wordlist import generate_wordlist, format_description
+from wordlist import generate_wordlist, generate_debug_wordlist, format_description
 
 
 def chat_id_to_room_id(chat_id: int) -> str:
@@ -34,12 +35,15 @@ class Bot:
         WAIT_VOTE = auto()
         ROUND_FINISH = auto()
 
-    def __init__(self, token, assets_path: pathlib.Path):
+    def __init__(self, token, assets_path: pathlib.Path, debug=False):
         self.token = token
         self.storage_controller = InmemoryStorageController()
         self.message_reader = MessageReader(assets_path)
 
         self.words_per_game = 4
+
+        self.debug = debug
+        self.logger = logging.getLogger(__name__)
 
     def __send(self, message: Message, context: CallbackContext, update: Update,
                reply: bool = True, chat_id: Optional[int] = None, format_kwargs: Optional[dict] = None,
@@ -66,6 +70,8 @@ class Bot:
         if not self.storage_controller.is_user_in_room(room_id, update.effective_user.id):
             self.storage_controller.add_user_to_room(room_id, update.effective_user)
             self.__send(Message.ADD_ME_SUCCESS, context, update)
+            if self.debug:
+                self.__send(Message.ADD_ME_DEBUG, context, update)
         else:
             self.__send(Message.ADD_ME_DUB, context, update)
         return None
@@ -94,7 +100,11 @@ class Bot:
             self.__send(Message.UNKNOWN_USER, context, update)
             return Bot.State.INIT_STATE
         self.__send(Message.GAME_START_1, context, update)
-        self.storage_controller.start_game(room_id, generate_wordlist(self.words_per_game))
+        if self.debug and (len(context.args) > 0):
+            word = context.args[0]
+            self.storage_controller.start_game(room_id, [generate_debug_wordlist(word)])
+        else:
+            self.storage_controller.start_game(room_id, generate_wordlist(self.words_per_game))
         self.__send(Message.GAME_START_2, context, update, reply=False)
         return Bot.State.WAIT_ANS
 
@@ -156,10 +166,18 @@ class Bot:
         )
         self.__send(Message.ROUND_END_1, context, update, format_kwargs={'results': result_string})
         self.__send(Message.ROUND_END_2, context, update, chat_id=room_id_to_chat_id(room_id))
+        if self.debug:
+            self.__send(Message.ROUND_END_2_DEBUG, context, update)
         return Bot.State.ROUND_FINISH
 
     def next_command(self, update: Update, context: CallbackContext) -> State:
         room_id = chat_id_to_room_id(update.effective_chat.id)
+
+        if self.debug and (len(context.args) > 0):
+            word = context.args[0]
+            self.storage_controller.start_game(room_id, [generate_debug_wordlist(word)])
+            return Bot.State.WAIT_ANS
+
         try:
             self.storage_controller.next_round(room_id)
         except IndexError:

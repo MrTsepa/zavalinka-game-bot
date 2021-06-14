@@ -1,1 +1,1 @@
-from .Generator import generate_wordlist, format_description
+from .Generator import generate_wordlist, generate_debug_wordlist, format_description
