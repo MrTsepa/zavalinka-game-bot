@@ -13,14 +13,13 @@ class ConversationHandler(TelegramConversationHandler):
     def __init__(
             self,
             state_entry_callbacks: Dict[object, Callable[[Update, CallbackContext], None]] = None,
+            state_reentry_callback: Dict[object, Callable[[Update, CallbackContext], None]] = None,
             *args,
             **kwargs
     ):
         super(ConversationHandler, self).__init__(*args, **kwargs)
-        if state_entry_callbacks is None:
-            self.state_entry_callbacks = {}
-        else:
-            self.state_entry_callbacks = state_entry_callbacks
+        self.state_entry_callbacks = state_entry_callbacks or {}
+        self.state_reentry_callback = state_reentry_callback or {}
 
     def collect_additional_context(
         self,
@@ -97,4 +96,6 @@ class ConversationHandler(TelegramConversationHandler):
         if new_state is not None:
             if new_state in self.state_entry_callbacks and new_state != old_state:
                 self.state_entry_callbacks[new_state](update, context)
+            elif new_state in self.state_reentry_callback:
+                self.state_reentry_callback[new_state](update, context)
         super(ConversationHandler, self).update_state(new_state, key)

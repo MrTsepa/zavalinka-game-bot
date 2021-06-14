@@ -221,6 +221,7 @@ class Bot:
         room_id = chat_id_to_room_id(update.effective_chat.id)
         word = self.storage_controller.get_current_word(room_id)
         self.__send(Message.ROUND_START_1, context, update, reply=False, format_kwargs={'word': word})
+        self.__send(Message.ROUND_START_SKIP, context, update, reply=False)
         self.__send(Message.ROUND_START_2, context, update, reply=False)
         for user_id in self.storage_controller.get_users_in_room(room_id):
             sent_message = self.__send(
@@ -228,6 +229,9 @@ class Bot:
                 chat_id=user_id, format_kwargs={'word': word}, send_message_kwargs={'reply_markup': ForceReply()}
             )
             self.storage_controller.add_user_question_message_id(room_id, user_id, sent_message.message_id)
+
+    def skip_command(self, update: Update, context: CallbackContext) -> State:
+        return self.next_command(update, context)
 
     def start(self):
         updater = Updater(self.token, use_context=True)
@@ -242,6 +246,7 @@ class Bot:
                     CommandHandler("remove_me", self.remove_me_command),
                 ],
                 Bot.State.WAIT_ANS: [
+                    CommandHandler("skip", self.skip_command),
                     CommandHandler("vote", self.vote_command),
                     CommandHandler("add_me", self.add_me_command),
                     CommandHandler("remove_me", self.remove_me_command),
@@ -258,8 +263,10 @@ class Bot:
                 ],
             },
             state_entry_callbacks={
-                ConversationHandler.END: self.end_state_entry,
-                Bot.State.WAIT_ANS: self.wait_ans_entry,
+                ConversationHandler.END: self.end_state_entry
+            },
+            state_reentry_callback={
+                Bot.State.WAIT_ANS: self.wait_ans_entry
             },
             fallbacks=[CommandHandler("stop_game", self.stop_game_command)],
             per_chat=True,
