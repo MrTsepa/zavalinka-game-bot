@@ -37,6 +37,7 @@ class Bot:
     def __init__(self, token, assets_path: pathlib.Path):
         self.token = token
         self.storage_controller = InmemoryStorageController()
+        self.assets_path = assets_path
         self.message_reader = MessageReader(assets_path)
 
         self.words_per_game = 4
@@ -94,7 +95,7 @@ class Bot:
             self.__send(Message.UNKNOWN_USER, context, update)
             return Bot.State.INIT_STATE
         self.__send(Message.GAME_START_1, context, update)
-        self.storage_controller.start_game(room_id, generate_wordlist(self.words_per_game))
+        self.storage_controller.start_game(room_id, generate_wordlist(self.words_per_game, mode='curated', assets_path=self.assets_path))
         self.__send(Message.GAME_START_2, context, update, reply=False)
         return Bot.State.WAIT_ANS
 
